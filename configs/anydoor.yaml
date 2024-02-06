@@ -1,3 +1,4 @@
+
 model:
   target: cldm.cldm.ControlLDM
   params:
@@ -80,6 +81,5 @@ model:
 
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenDinoV2Encoder
-      weight: ./.ckpt/dinov2_vitl14_reg4_pretrain.pth
-    
+      weight: ./.ckpt/dinov2_vitg14_reg4_full_size_pretrain.pth    
 
