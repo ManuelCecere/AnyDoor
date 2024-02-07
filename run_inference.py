@@ -8,6 +8,8 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
+import time
+
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -271,6 +273,7 @@ def inference_single_image(
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     # """
     # ==== Example for inferring a single image ===
     reference_image_path = "./examples/SUS/FG/t-shirt.png"
@@ -295,13 +298,18 @@ if __name__ == "__main__":
     # background mask
     tar_mask = cv2.imread(bg_mask_path)[:, :, 0] > 128
     tar_mask = tar_mask.astype(np.uint8)
-
+    
+    start_time_inference = time.time()
     gen_image = inference_single_image(ref_image, ref_mask, back_image.copy(), tar_mask)
+    end_time_inference = time.time()
+    print("time spent in inference: ", end_time_inference - start_time_inference )
     h, w = back_image.shape[0], back_image.shape[0]
     ref_image = cv2.resize(ref_image, (w, h))
     vis_image = cv2.hconcat([ref_image, back_image, gen_image])
 
     cv2.imwrite(save_path, vis_image[:, :, ::-1])
+    end_time = time.time()
+    print("total time spent: ", end_time - start_time)
     # """
     """
     # ==== Example for inferring VITON-HD Test dataset ===
