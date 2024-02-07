@@ -276,10 +276,10 @@ if __name__ == "__main__":
     start_time = time.time()
     # """
     # ==== Example for inferring a single image ===
-    reference_image_path = "./examples/SUS/FG/t-shirt.png"
+    reference_image_path = "./examples/SUS/FG/jeans_zampa_elefante.png"
     bg_image_path = "./examples/SUS/BG/Eva_0.png"
-    bg_mask_path = "./examples/SUS/BG/Eva_mask_2.png"
-    save_path = "./examples/SUS/GEN/Eva_shirt.png"
+    bg_mask_path = "./examples/SUS/BG/Eva_mask_lower_body.png"
+    save_path = "./examples/SUS/GEN/Eva_pants.png"
 
     # reference image + reference mask
     # You could use the demo of SAM to extract RGB-A image with masks
@@ -298,11 +298,11 @@ if __name__ == "__main__":
     # background mask
     tar_mask = cv2.imread(bg_mask_path)[:, :, 0] > 128
     tar_mask = tar_mask.astype(np.uint8)
-    
+
     start_time_inference = time.time()
     gen_image = inference_single_image(ref_image, ref_mask, back_image.copy(), tar_mask)
     end_time_inference = time.time()
-    print("time spent in inference: ", end_time_inference - start_time_inference )
+    print("time spent in inference: ", end_time_inference - start_time_inference)
     h, w = back_image.shape[0], back_image.shape[0]
     ref_image = cv2.resize(ref_image, (w, h))
     vis_image = cv2.hconcat([ref_image, back_image, gen_image])
