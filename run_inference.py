@@ -273,7 +273,7 @@ def inference_single_image(
 if __name__ == "__main__":
     # """
     # ==== Example for inferring a single image ===
-    reference_image_path = "./examples/SUS/FG/t-shirt.jpg"
+    reference_image_path = "./examples/SUS/FG/t-shirt.png"
     bg_image_path = "./examples/SUS/BG/Eva_0.png"
     bg_mask_path = "./examples/SUS/BG/Eva_mask_2.png"
     save_path = "./examples/SUS/GEN/Eva_shirt.png"
