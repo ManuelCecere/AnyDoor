@@ -277,7 +277,7 @@ if __name__ == "__main__":
     # """
     # ==== Example for inferring a single image ===
     reference_image_path = "./examples/SUS/FG/jeans_zampa_elefante.png"
-    bg_image_path = "./examples/SUS/GEN/Eva_shirt.png"
+    bg_image_path = "./examples/SUS/BG/Eva_shirt.png"
     bg_mask_path = "./examples/SUS/BG/Eva_mask_pants.png"
     save_path = "./examples/SUS/GEN/Eva_upper_and_lower.png"
 
