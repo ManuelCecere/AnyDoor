@@ -273,10 +273,10 @@ def inference_single_image(
 if __name__ == "__main__":
     # """
     # ==== Example for inferring a single image ===
-    reference_image_path = "./examples/TestDreamBooth/FG/01.png"
-    bg_image_path = "./examples/TestDreamBooth/BG/000000309203_GT.png"
-    bg_mask_path = "./examples/TestDreamBooth/BG/000000309203_mask.png"
-    save_path = "./examples/TestDreamBooth/GEN/gen_res_2.png"
+    reference_image_path = "./examples/SUS/FG/t-shirt.jpg"
+    bg_image_path = "./examples/SUS/BG/Eva_0.png"
+    bg_mask_path = "./examples/SUS/BG/Eva_mask_2.png"
+    save_path = "./examples/SUS/GEN/Eva_shirt.png"
 
     # reference image + reference mask
     # You could use the demo of SAM to extract RGB-A image with masks
