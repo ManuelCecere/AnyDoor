@@ -8,6 +8,7 @@ from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
+from collections import namedtuple
 import time
 
 
@@ -273,43 +274,65 @@ def inference_single_image(
 
 
 if __name__ == "__main__":
-    start_time = time.time()
+
     # """
-    # ==== Example for inferring a single image ===
-    reference_image_path = "./examples/SUS/FG/jeans_zampa_elefante.png"
-    bg_image_path = "./examples/SUS/BG/Eva_shirt.png"
-    bg_mask_path = "./examples/SUS/BG/Eva_mask_pants.png"
-    save_path = "./examples/SUS/GEN/Eva_upper_and_lower.png"
+    start_time = time.time()
+    Test_tuple = namedtuple(
+        "Test_tuple",
+        ["reference_image_path", "bg_image_path", "bg_mask_path", "save_path"],
+    )
+    lower_on_upper_inpaint = Test_tuple(
+        reference_image_path="./examples/SUS/FG/jeans_zampa_elefante.png",
+        bg_image_path="./examples/SUS/BG/Eva_shirt.png",
+        bg_mask_path="./examples/SUS/BG/Eva_mask_pants.png",
+        save_path="./examples/SUS/GEN/Eva_upper_and_lower.png",
+    )
+    pants_inpaint = Test_tuple(
+        reference_image_path="./examples/SUS/FG/jeans_zampa_elefante.png",
+        bg_image_path="./examples/SUS/BG/Eva_0.png",
+        bg_mask_path="./examples/SUS/BG/Eva_mask_pants.png",
+        save_path="./examples/SUS/GEN/Eva_pants.png",
+    )
 
-    # reference image + reference mask
-    # You could use the demo of SAM to extract RGB-A image with masks
-    # https://segment-anything.com/demo
-    image = cv2.imread(reference_image_path, cv2.IMREAD_UNCHANGED)
-    mask = (image[:, :, -1] > 128).astype(np.uint8)
-    image = image[:, :, :-1]
-    image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB)
-    ref_image = image
-    ref_mask = mask
+    test_paths = [lower_on_upper_inpaint, pants_inpaint]
 
-    # background image
-    back_image = cv2.imread(bg_image_path).astype(np.uint8)
-    back_image = cv2.cvtColor(back_image, cv2.COLOR_BGR2RGB)
+    for test in test_paths:
+        reference_image_path = test.reference_image_path
+        bg_image_path = test.bg_image_path
+        bg_mask_path = test.bg_mask_path
+        save_path = test.save_path
 
-    # background mask
-    tar_mask = cv2.imread(bg_mask_path)[:, :, 0] > 128
-    tar_mask = tar_mask.astype(np.uint8)
+        # reference image + reference mask
+        # You could use the demo of SAM to extract RGB-A image with masks
+        # https://segment-anything.com/demo
+        image = cv2.imread(reference_image_path, cv2.IMREAD_UNCHANGED)
+        mask = (image[:, :, -1] > 128).astype(np.uint8)
+        image = image[:, :, :-1]
+        image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB)
+        ref_image = image
+        ref_mask = mask
 
-    start_time_inference = time.time()
-    gen_image = inference_single_image(ref_image, ref_mask, back_image.copy(), tar_mask)
-    end_time_inference = time.time()
-    print("time spent in inference: ", end_time_inference - start_time_inference)
-    h, w = back_image.shape[0], back_image.shape[0]
-    ref_image = cv2.resize(ref_image, (w, h))
-    vis_image = cv2.hconcat([ref_image, back_image, gen_image])
+        # background image
+        back_image = cv2.imread(bg_image_path).astype(np.uint8)
+        back_image = cv2.cvtColor(back_image, cv2.COLOR_BGR2RGB)
 
-    cv2.imwrite(save_path, vis_image[:, :, ::-1])
-    end_time = time.time()
-    print("total time spent: ", end_time - start_time)
+        # background mask
+        tar_mask = cv2.imread(bg_mask_path)[:, :, 0] > 128
+        tar_mask = tar_mask.astype(np.uint8)
+
+        start_time_inference = time.time()
+        gen_image = inference_single_image(
+            ref_image, ref_mask, back_image.copy(), tar_mask
+        )
+        end_time_inference = time.time()
+        print("time spent in inference: ", end_time_inference - start_time_inference)
+        h, w = back_image.shape[0], back_image.shape[0]
+        ref_image = cv2.resize(ref_image, (w, h))
+        vis_image = cv2.hconcat([ref_image, back_image, gen_image])
+
+        cv2.imwrite(save_path, vis_image[:, :, ::-1])
+        end_time = time.time()
+        print("total time spent: ", end_time - start_time)
     # """
     """
     # ==== Example for inferring VITON-HD Test dataset ===
