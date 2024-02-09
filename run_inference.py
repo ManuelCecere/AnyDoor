@@ -173,9 +173,7 @@ def crop_back(pred, tar_image, extra_sizes, tar_box_yyxx_crop):
     return gen_image
 
 
-def inference_single_image(
-    ref_image, ref_mask, tar_image, tar_mask, guidance_scale=5.0
-):
+def inference_single_image(ref_image, ref_mask, tar_image, tar_mask, guidance_scale=4):
     item = process_pairs(ref_image, ref_mask, tar_image, tar_mask)
     ref = item["ref"] * 255
     tar = item["jpg"] * 127.5 + 127.5
@@ -226,7 +224,7 @@ def inference_single_image(
     # ====
     num_samples = 1  # gr.Slider(label="Images", minimum=1, maximum=12, value=1, step=1)
     image_resolution = 512  # gr.Slider(label="Image Resolution", minimum=256, maximum=768, value=512, step=64)
-    strength = 1  # gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
+    strength = 0.9  # gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
     guess_mode = False  # gr.Checkbox(label='Guess Mode', value=False)
     # detect_resolution = 512  #gr.Slider(label="Segmentation Resolution", minimum=128, maximum=1024, value=512, step=1)
     ddim_steps = (
@@ -272,6 +270,22 @@ def inference_single_image(
     tar_box_yyxx_crop = item["tar_box_yyxx_crop"]
     gen_image = crop_back(pred, tar_image, sizes, tar_box_yyxx_crop)
     return gen_image
+
+
+def check_image_format(image):
+    # Check if the image was loaded successfully
+    if image is None:
+        print("Error: Image not loaded. Check the file path.")
+        return False
+    # Check if the image has 4 channels (RGBA, including alpha channel)
+    if image.shape[2] != 4:
+        print(
+            "Error: Image does not have 4 channels. It is required to have an alpha channel."
+        )
+        return False
+    # If both checks pass
+    print("Image is in the correct format.")
+    return True
 
 
 if __name__ == "__main__":
@@ -347,6 +361,13 @@ if __name__ == "__main__":
     )
 
     # test_paths = [lower_on_upper_inpaint, pants_inpaint]
+    # used to test the mask generation code
+    mask_test = Test_tuple(
+        reference_image_path="./examples/SUS/FG/t-shirt.png",
+        bg_image_path="./examples/SUS/BG/Eva_0.png",
+        bg_mask_path="./examples/SUS/BG/Eva_mask_upper.png",
+        save_path="./examples/SUS/GEN/Eva_upper.png",
+    )
 
     for test in test_paths:
         reference_image_path = test.reference_image_path
@@ -355,10 +376,13 @@ if __name__ == "__main__":
         save_path = test.save_path
 
         # reference image + reference mask
+        # target image should have the alpha channel set, to generate the mask
         # You could use the demo of SAM to extract RGB-A image with masks
         # https://segment-anything.com/demo
         image = cv2.imread(reference_image_path, cv2.IMREAD_UNCHANGED)
+        check_image_format(image)
         mask = (image[:, :, -1] > 128).astype(np.uint8)
+
         image = image[:, :, :-1]
         image = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB)
         ref_image = image
