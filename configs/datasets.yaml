@@ -32,7 +32,7 @@ Train:
     image_dir: /mnt/workspace/xizhi/data/MVImgNet/
 
   VitonHD:
-    image_dir: path/TryOn/VitonHD/train/cloth/
+    image_dir: /home/ubuntu/mnt/myData/zalando-hd-resized/train/cloth
 
   Dresscode:
     image_dir: /mnt/workspace/xizhi/data/dresscode/DressCode/upper_body/label_maps/

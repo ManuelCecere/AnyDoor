@@ -9,6 +9,7 @@ from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
 from collections import namedtuple
+from matplotlib import pyplot as plt
 import time
 import os
 
@@ -49,7 +50,7 @@ def aug_data_mask(image, mask):
     return transformed_image, transformed_mask
 
 
-def process_pairs(ref_image, ref_mask, tar_image, tar_mask):
+def process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id):
     # ========= Reference ===========
     # ref expand
     ref_box_yyxx = get_bbox_from_mask(ref_mask)
@@ -61,6 +62,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask):
     )
 
     y1, y2, x1, x2 = ref_box_yyxx
+
     masked_ref_image = masked_ref_image[y1:y2, x1:x2, :]
     ref_mask = ref_mask[y1:y2, x1:x2]
 
@@ -89,27 +91,36 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask):
     masked_ref_image_aug = masked_ref_image_compose.copy()
     ref_mask_3 = np.stack([ref_mask_compose, ref_mask_compose, ref_mask_compose], -1)
     ref_image_collage = sobel(masked_ref_image_compose, ref_mask_compose / 255)
+    cv2.imwrite(f"processed_images/{file_id}_hf_map.png", ref_image_collage)
 
     # ========= Target ===========
     tar_box_yyxx = get_bbox_from_mask(tar_mask)
     tar_box_yyxx = expand_bbox(tar_mask, tar_box_yyxx, ratio=[1.1, 1.2])
 
     # crop
-    tar_box_yyxx_crop = expand_bbox(tar_image, tar_box_yyxx, ratio=[1.5, 3])  # 1.2 1.6
+    tar_box_yyxx_crop = expand_bbox(
+        tar_image, tar_box_yyxx, ratio=[1.1, 1.2]
+    )  # 1.2 1.6
     tar_box_yyxx_crop = box2squre(tar_image, tar_box_yyxx_crop)  # crop box
     y1, y2, x1, x2 = tar_box_yyxx_crop
 
     cropped_target_image = tar_image[y1:y2, x1:x2, :]
     tar_box_yyxx = box_in_box(tar_box_yyxx, tar_box_yyxx_crop)
     y1, y2, x1, x2 = tar_box_yyxx
+    cv2.imwrite(
+        f"processed_images/{file_id}_cropped_and_squared_target_image.png",
+        cropped_target_image,
+    )
 
     # collage
     ref_image_collage = cv2.resize(ref_image_collage, (x2 - x1, y2 - y1))
     ref_mask_compose = cv2.resize(ref_mask_compose.astype(np.uint8), (x2 - x1, y2 - y1))
     ref_mask_compose = (ref_mask_compose > 128).astype(np.uint8)
+    cv2.imwrite(f"processed_images/{file_id}_ref_image_collage.png", ref_image_collage)
 
     collage = cropped_target_image.copy()
     collage[y1:y2, x1:x2, :] = ref_image_collage
+    cv2.imwrite(f"processed_images/{file_id}_collage.png", collage)
 
     collage_mask = cropped_target_image.copy() * 0.0
     collage_mask[y1:y2, x1:x2, :] = 1.0
@@ -123,6 +134,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask):
     collage_mask = pad_to_square(collage_mask, pad_value=-1, random=False).astype(
         np.uint8
     )
+    cv2.imwrite(f"processed_images/{file_id}_collage_after_square_padding.png", collage)
 
     # the size after pad
     H2, W2 = collage.shape[0], collage.shape[1]
@@ -133,6 +145,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask):
     collage_mask = (
         cv2.resize(collage_mask, (512, 512)).astype(np.float32) > 0.5
     ).astype(np.float32)
+    cv2.imwrite(f"processed_images/{file_id}_collage_after_resize.png", collage)
 
     masked_ref_image_aug = masked_ref_image_aug / 255
     cropped_target_image = cropped_target_image / 127.5 - 1.0
@@ -173,8 +186,10 @@ def crop_back(pred, tar_image, extra_sizes, tar_box_yyxx_crop):
     return gen_image
 
 
-def inference_single_image(ref_image, ref_mask, tar_image, tar_mask, guidance_scale=4):
-    item = process_pairs(ref_image, ref_mask, tar_image, tar_mask)
+def inference_single_image(
+    ref_image, ref_mask, tar_image, tar_mask, file_id, guidance_scale=4
+):
+    item = process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id)
     ref = item["ref"] * 255
     tar = item["jpg"] * 127.5 + 127.5
     hint = item["hint"] * 127.5 + 127.5
@@ -205,8 +220,10 @@ def inference_single_image(ref_image, ref_mask, tar_image, tar_mask, guidance_sc
     H, W = 512, 512
 
     cond = {
-        "c_concat": [control],
-        "c_crossattn": [model.get_learned_conditioning(clip_input)],
+        "c_concat": [control],  # the Detail Maps
+        "c_crossattn": [
+            model.get_learned_conditioning(clip_input)
+        ],  # the ID tokens, get method is the original diffusion method model
     }
     un_cond = {
         "c_concat": None if guess_mode else [control],
@@ -224,7 +241,7 @@ def inference_single_image(ref_image, ref_mask, tar_image, tar_mask, guidance_sc
     # ====
     num_samples = 1  # gr.Slider(label="Images", minimum=1, maximum=12, value=1, step=1)
     image_resolution = 512  # gr.Slider(label="Image Resolution", minimum=256, maximum=768, value=512, step=64)
-    strength = 0.9  # gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
+    strength = 1.0  # gr.Slider(label="Control Strength", minimum=0.0, maximum=2.0, value=1.0, step=0.01)
     guess_mode = False  # gr.Checkbox(label='Guess Mode', value=False)
     # detect_resolution = 512  #gr.Slider(label="Segmentation Resolution", minimum=128, maximum=1024, value=512, step=1)
     ddim_steps = (
@@ -298,22 +315,45 @@ if __name__ == "__main__":
     )
 
     bg_upper_dirs = [
-        ["./examples/SUS/BG/Eva_0.png", "./examples/SUS/BG/Eva_mask_upper.png"],
+        ["./examples/SUS/BG/Eva_0.png", "./examples/SUS/BG/Eva_mask_upper.png", "box"],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_upper_smaller.png",
+            "smaller_box",
+        ],
+        [
+            "./examples/SUS/BG/Eva_0.png",
+            "./examples/SUS/BG/Eva_mask_upper_long_sleeves.png",
+            "tailored_long_sleeves",
+        ],
+        [
+            "./examples/SUS/BG/Eva_0.png",
+            "./examples/SUS/BG/Eva_mask_upper_short_sleeves.png",
+            "tailored_short_sleeves",
         ],
     ]
     bg_lower_dirs = [
-        ["./examples/SUS/BG/Eva_0.png", "./examples/SUS/BG/Eva_mask_lower.png"],
+        ["./examples/SUS/BG/Eva_0.png", "./examples/SUS/BG/Eva_mask_lower.png", "box"],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_lower_smaller.png",
+            "smaller_box",
+        ],
+        [
+            "./examples/SUS/BG/Eva_0.png",
+            "./examples/SUS/BG/Eva_mask_lower_short.png",
+            "tailored_long",
+        ],
+        [
+            "./examples/SUS/BG/Eva_0.png",
+            "./examples/SUS/BG/Eva_mask_lower_long.png",
+            "tailored_short",
         ],
     ]
     test_paths = []
+
     root_directory = "./examples/SUS/FG"
-    for path_tuple in bg_upper_dirs:
+    for index, path_tuple in enumerate(bg_upper_dirs):
         for dirpath, dirnames, filenames in os.walk(
             os.path.join(root_directory, "upper")
         ):
@@ -325,12 +365,12 @@ if __name__ == "__main__":
                     bg_image_path=path_tuple[0],
                     bg_mask_path=path_tuple[1],
                     save_path=os.path.join(
-                        "./examples/SUS/GEN", f"{file_id}_upper.png"
+                        "./examples/SUS/GEN", f"{file_id}_upper_{path_tuple[2]}.png"
                     ),
                 )
                 test_paths.append(test_tuple)
 
-    for path_tuple in bg_lower_dirs:
+    for index, path_tuple in enumerate(bg_lower_dirs):
         for dirpath, dirnames, filenames in os.walk(
             os.path.join(root_directory, "lower")
         ):
@@ -342,7 +382,7 @@ if __name__ == "__main__":
                     bg_image_path=path_tuple[0],
                     bg_mask_path=path_tuple[1],
                     save_path=os.path.join(
-                        "./examples/SUS/GEN", f"{file_id}_lower.png"
+                        "./examples/SUS/GEN", f"{file_id}_lower_{path_tuple[2]}.png"
                     ),
                 )
                 test_paths.append(test_tuple)
@@ -363,17 +403,18 @@ if __name__ == "__main__":
     # test_paths = [lower_on_upper_inpaint, pants_inpaint]
     # used to test the mask generation code
     mask_test = Test_tuple(
-        reference_image_path="./examples/SUS/FG/t-shirt.png",
+        reference_image_path="./examples/SUS/FG/lower/1003368624002_seg.png",
         bg_image_path="./examples/SUS/BG/Eva_0.png",
-        bg_mask_path="./examples/SUS/BG/Eva_mask_upper.png",
-        save_path="./examples/SUS/GEN/Eva_upper.png",
+        bg_mask_path="./examples/SUS/BG/Eva_mask_lower_long.png",
+        save_path="./examples/SUS/GEN/test.png",
     )
 
-    for test in test_paths:
+    for test in [mask_test]:
         reference_image_path = test.reference_image_path
         bg_image_path = test.bg_image_path
         bg_mask_path = test.bg_mask_path
         save_path = test.save_path
+        file_id = save_path.split("/")[-1].split(".")[0]
 
         # reference image + reference mask
         # target image should have the alpha channel set, to generate the mask
@@ -398,7 +439,7 @@ if __name__ == "__main__":
 
         start_time_inference = time.time()
         gen_image = inference_single_image(
-            ref_image, ref_mask, back_image.copy(), tar_mask
+            ref_image, ref_mask, back_image.copy(), tar_mask, file_id
         )
         end_time_inference = time.time()
         print("time spent in inference: ", end_time_inference - start_time_inference)
