@@ -5,6 +5,7 @@ import torch
 import random
 import pytorch_lightning as pl
 from pytorch_lightning import seed_everything
+from PeftModelLightning import PeftModelLightning
 from cldm.model import create_model, load_state_dict
 from cldm.cldm import ControlLDM
 from cldm.ddim_hacked import DDIMSampler
@@ -51,29 +52,23 @@ model.sd_locked = sd_locked
 model.only_mid_control = only_mid_control
 
 
-with open("output.txt", "w") as file:
-    import sys
-
-    target_mods = []
-    original_stdout = sys.stdout
-    sys.stdout = file
-    print(model)
-    print("Model modules:")
-    for name, module in model.named_modules():
-        print(f"{name:20} : {type(module).__name__}")
-        if (
-            type(module).__name__ == "Conv2d"
-            and "model.diffusion_model.input_blocks" in name
-        ):
-            target_mods.append(name)
-
-    sys.stdout = original_stdout  # Reset the standard output to its original value
+target_mods = []
+for name, module in model.named_modules():
+    # print(f"{name:20} : {type(module).__name__}")
+    if (
+        type(module).__name__ == "Conv2d"
+        and "model.diffusion_model.input_blocks" in name
+    ):
+        target_mods.append(name)
 
 config = LoraConfig(target_modules=target_mods)
 
 peft_model = get_peft_model(model, config)
 peft_model.print_trainable_parameters()
 
+with open("output.txt", "w") as f:
+    print(peft_model, file=f)
+wrapper_model = PeftModelLightning(peft_model)
 
 # Datasets
 DConf = OmegaConf.load("./configs/datasets.yaml")
@@ -94,4 +89,4 @@ trainer = pl.Trainer(
 
 
 # Train!
-trainer.fit(peft_model, dataloader)
+trainer.fit(wrapper_model, dataloader)

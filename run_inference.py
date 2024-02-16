@@ -91,7 +91,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id):
     masked_ref_image_aug = masked_ref_image_compose.copy()
     ref_mask_3 = np.stack([ref_mask_compose, ref_mask_compose, ref_mask_compose], -1)
     ref_image_collage = sobel(masked_ref_image_compose, ref_mask_compose / 255)
-    cv2.imwrite(f"processed_images/{file_id}_hf_map.png", ref_image_collage)
+    # cv2.imwrite(f"processed_images/{file_id}_hf_map.png", ref_image_collage)
 
     # ========= Target ===========
     tar_box_yyxx = get_bbox_from_mask(tar_mask)
@@ -107,20 +107,20 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id):
     cropped_target_image = tar_image[y1:y2, x1:x2, :]
     tar_box_yyxx = box_in_box(tar_box_yyxx, tar_box_yyxx_crop)
     y1, y2, x1, x2 = tar_box_yyxx
-    cv2.imwrite(
-        f"processed_images/{file_id}_cropped_and_squared_target_image.png",
-        cropped_target_image,
-    )
+    # cv2.imwrite(
+    #     f"processed_images/{file_id}_cropped_and_squared_target_image.png",
+    #     cropped_target_image,
+    # )
 
     # collage
     ref_image_collage = cv2.resize(ref_image_collage, (x2 - x1, y2 - y1))
     ref_mask_compose = cv2.resize(ref_mask_compose.astype(np.uint8), (x2 - x1, y2 - y1))
     ref_mask_compose = (ref_mask_compose > 128).astype(np.uint8)
-    cv2.imwrite(f"processed_images/{file_id}_ref_image_collage.png", ref_image_collage)
+    # cv2.imwrite(f"processed_images/{file_id}_ref_image_collage.png", ref_image_collage)
 
     collage = cropped_target_image.copy()
     collage[y1:y2, x1:x2, :] = ref_image_collage
-    cv2.imwrite(f"processed_images/{file_id}_collage.png", collage)
+    # cv2.imwrite(f"processed_images/{file_id}_collage.png", collage)
 
     collage_mask = cropped_target_image.copy() * 0.0
     collage_mask[y1:y2, x1:x2, :] = 1.0
@@ -134,7 +134,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id):
     collage_mask = pad_to_square(collage_mask, pad_value=-1, random=False).astype(
         np.uint8
     )
-    cv2.imwrite(f"processed_images/{file_id}_collage_after_square_padding.png", collage)
+    # cv2.imwrite(f"processed_images/{file_id}_collage_after_square_padding.png", collage)
 
     # the size after pad
     H2, W2 = collage.shape[0], collage.shape[1]
@@ -145,7 +145,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id):
     collage_mask = (
         cv2.resize(collage_mask, (512, 512)).astype(np.float32) > 0.5
     ).astype(np.float32)
-    cv2.imwrite(f"processed_images/{file_id}_collage_after_resize.png", collage)
+    # cv2.imwrite(f"processed_images/{file_id}_collage_after_resize.png", collage)
 
     masked_ref_image_aug = masked_ref_image_aug / 255
     cropped_target_image = cropped_target_image / 127.5 - 1.0
@@ -342,12 +342,12 @@ if __name__ == "__main__":
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_lower_short.png",
-            "tailored_long",
+            "tailored_short",
         ],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_lower_long.png",
-            "tailored_short",
+            "tailored_long",
         ],
     ]
     test_paths = []
@@ -409,7 +409,7 @@ if __name__ == "__main__":
         save_path="./examples/SUS/GEN/test.png",
     )
 
-    for test in [mask_test]:
+    for test in test_paths:
         reference_image_path = test.reference_image_path
         bg_image_path = test.bg_image_path
         bg_mask_path = test.bg_mask_path
