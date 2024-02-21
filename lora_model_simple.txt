@@ -1,0 +1,25 @@
+SimpleNetwork(
+  (res_block): ResBlock(
+    (in_layers): Sequential(
+      (0): GroupNorm32(32, 1280, eps=1e-05, affine=True)
+      (1): SiLU()
+      (2): Conv2d(1280, 1280, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    )
+    (h_upd): Identity()
+    (x_upd): Identity()
+    (emb_layers): Sequential(
+      (0): SiLU()
+      (1): LinearWithLoRA(
+        (linear): Linear(in_features=1280, out_features=1280, bias=True)
+        (lora): LoRALayer()
+      )
+    )
+    (out_layers): Sequential(
+      (0): GroupNorm32(32, 1280, eps=1e-05, affine=True)
+      (1): SiLU()
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Conv2d(1280, 1280, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    )
+    (skip_connection): Identity()
+  )
+)
