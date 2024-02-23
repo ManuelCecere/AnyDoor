@@ -20,14 +20,12 @@ from torch.utils.data import DataLoader
 from datasets.vitonhd import VitonHDDataset, VitonHDDataset_agnostic
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from pytorch_lightning.callbacks import StochasticWeightAveraging
-
+from pytorch_lightning.tuner.tuning import Tuner
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 import albumentations as A
 from omegaconf import OmegaConf
-from PIL import Image
-from peft import LoraConfig, get_peft_model
 
 seed_everything(42, workers=True)
 
@@ -68,11 +66,12 @@ if save_memory:
 resume_path = ".ckpt/epoch=1-step=8687_ft.ckpt"
 batch_size = 4
 logger_freq = 1000
-learning_rate = 1e-5
+# value found with ligthinig lr_finder
+learning_rate = 1e-8
 sd_locked = False
 only_mid_control = False
 n_gpus = 1
-accumulate_grad_batches = 1
+accumulate_grad_batches = 4
 
 # Datasets, the Viton agnostic uses a mask agnostic wrt the garment
 DConf = OmegaConf.load("./configs/datasets.yaml")
@@ -142,12 +141,12 @@ checkpoint_callback = ModelCheckpoint(
     auto_insert_metric_name=False,
 )
 
-swa_callback = StochasticWeightAveraging(swa_lrs=1e-4)
+swa_callback = StochasticWeightAveraging(swa_lrs=1e-5)
 trainer = pl.Trainer(
     gpus=n_gpus,
     precision=16,
     accelerator="gpu",
-    callbacks=[checkpoint_callback],
+    callbacks=[checkpoint_callback, swa_callback],
     progress_bar_refresh_rate=1,
     accumulate_grad_batches=accumulate_grad_batches,
     default_root_dir="./finetuning/checkpoints",
@@ -156,6 +155,14 @@ trainer = pl.Trainer(
     profiler="simple",
 )
 
+
+# tuner = Tuner(trainer)
+# # Run learning rate finder
+# lr_finder = tuner.lr_find(
+#     model=model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val
+# )
+# # Results can be found in
+# print(lr_finder.results)
 
 # Train!
 trainer.fit(model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val)
