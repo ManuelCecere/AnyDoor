@@ -62,7 +62,7 @@ Test:
     bg_dir: path/DreamBooth/v1_800
 
   VitonHDTest:
-    image_dir: path/TryOn/VitonHD/test/cloth
+    image_dir: /home/ubuntu/mnt/myData/zalando-hd-resized/test/cloth
 
 
 
