@@ -63,9 +63,8 @@ if save_memory:
     enable_sliced_attention()
 
 # Configs
-resume_path = ".ckpt/epoch=1-step=8687_ft.ckpt"
+resume_path = ".ckpt/epoch=1-step=8687.ckpt"
 batch_size = 4
-logger_freq = 1000
 # value found with ligthinig lr_finder
 learning_rate = 1e-8
 sd_locked = False
@@ -89,8 +88,8 @@ def create_fractional_sampler(dataset, fraction):
 
 
 # use these samplers if you want to reduce the size of the datasets, for test purposes, pass it as parameters to the loaders
-val_sampler = create_fractional_sampler(dataset_val, fraction=0.01)
-train_sampler = create_fractional_sampler(dataset_train, fraction=0.1)
+# val_sampler = create_fractional_sampler(dataset_val, fraction=0.01)
+# train_sampler = create_fractional_sampler(dataset_train, fraction=0.1)
 
 
 dataloader_train = DataLoader(
@@ -147,7 +146,7 @@ trainer = pl.Trainer(
     precision=16,
     accelerator="gpu",
     callbacks=[checkpoint_callback, swa_callback],
-    progress_bar_refresh_rate=1,
+    progress_bar_refresh_rate=5,
     accumulate_grad_batches=accumulate_grad_batches,
     default_root_dir="./finetuning/checkpoints",
     max_epochs=3,

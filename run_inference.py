@@ -409,7 +409,7 @@ if __name__ == "__main__":
         save_path="./examples/SUS/GEN/test.png",
     )
 
-    for test in [mask_test]:
+    for test in test_paths:
         reference_image_path = test.reference_image_path
         bg_image_path = test.bg_image_path
         bg_mask_path = test.bg_mask_path
