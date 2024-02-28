@@ -21,6 +21,7 @@ from datasets.vitonhd import VitonHDDataset, VitonHDDataset_agnostic
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.tuner.tuning import Tuner
+from dress_code_data import DressCodeDataLoader, DressCodeDataset
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -76,6 +77,7 @@ accumulate_grad_batches = 4
 DConf = OmegaConf.load("./configs/datasets.yaml")
 dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
 dataset_val = VitonHDDataset_agnostic(**DConf.Test.VitonHDTest)
+
 print("Train: ", len(dataset_train))
 print("Val: ", len(dataset_val))
 

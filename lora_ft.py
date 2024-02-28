@@ -61,7 +61,7 @@ if save_memory:
     enable_sliced_attention()
 
 # Configs
-resume_path = ".ckpt/epoch=1-step=8687_ft.ckpt"
+resume_path = ".ckpt/epoch=1-step=8687.ckpt"
 batch_size = 1
 logger_freq = 1000
 learning_rate = 1e-5
@@ -81,9 +81,9 @@ model.only_mid_control = only_mid_control
 for name, param in model.named_parameters():
     param.requires_grad = False
 
-for name, param in model.named_parameters():
-    if "model.diffusion_model.output_blocks" in name:
-        param.requires_grad = True
+# for name, param in model.named_parameters():
+#     if "model.diffusion_model.output_blocks" in name:
+#         param.requires_grad = True
 
 
 lora_r = 8
@@ -95,15 +95,21 @@ assign_lora = partial(LinearWithLoRA, rank=lora_r, alpha=lora_alpha)
 for block in model.model.diffusion_model.output_blocks:
     for layer in block:
         # Some Linear layers where I applied LoRA. Both raise the Error.
-        if isinstance(layer, ResBlock):
-            # Access the emb_layers which is a Sequential containing Linear layers
-            emb_layers = layer.emb_layers
-            for i, layer in enumerate(emb_layers):
-                if isinstance(layer, torch.nn.Linear):
-                    # Assign LoRA or any other modifications to the Linear layer
-                    emb_layers[i] = assign_lora(layer)
+        # if isinstance(layer, ResBlock):
+        # unfreeze parameters of ResBlock
+        # for name, param in layer.named_parameters():
+        #     param.requires_grad = True
+        # # Access the emb_layers which is a Sequential containing Linear layers
+        # emb_layers = layer.emb_layers
+        # for i, layer in enumerate(emb_layers):
+        #     if isinstance(layer, torch.nn.Linear):
+        #         # Assign LoRA or any other modifications to the Linear layer
+        #         emb_layers[i] = assign_lora(layer)
         if isinstance(layer, SpatialTransformer):
-            layer.proj_in = assign_lora(layer.proj_in)
+            for name, param in layer.named_parameters():
+                param.requires_grad = True
+            # layer.proj_in = assign_lora(layer.proj_in)
+
 
 trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad == True)
 print("trainable parameters: ", trainable_count)

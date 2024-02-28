@@ -505,10 +505,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 1280, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=1280, out_features=1280, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=1280, out_features=1280, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
@@ -569,10 +566,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 1280, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=1280, out_features=1280, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=1280, out_features=1280, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
@@ -636,10 +630,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 640, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=640, out_features=640, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=640, out_features=640, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
@@ -700,10 +691,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 640, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=640, out_features=640, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=640, out_features=640, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
@@ -764,10 +752,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 640, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=640, out_features=640, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=640, out_features=640, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
@@ -831,10 +816,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 320, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=320, out_features=320, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=320, out_features=320, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
@@ -895,10 +877,7 @@ ControlLDM(
           )
           (1): SpatialTransformer(
             (norm): GroupNorm(32, 320, eps=1e-06, affine=True)
-            (proj_in): LinearWithLoRA(
-              (linear): Linear(in_features=320, out_features=320, bias=True)
-              (lora): LoRALayer()
-            )
+            (proj_in): Linear(in_features=320, out_features=320, bias=True)
             (transformer_blocks): ModuleList(
               (0): BasicTransformerBlock(
                 (attn1): MemoryEfficientCrossAttention(
