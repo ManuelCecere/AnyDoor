@@ -9,6 +9,7 @@ import json
 from typing import List, Tuple
 from dress_code_data.labelmap import label_map
 from numpy.linalg import lstsq
+from datasets.base import BaseDataset
 
 
 class DressCodeDataset(data.Dataset):
@@ -456,7 +457,7 @@ class DressCodeDataset(data.Dataset):
         return len(self.c_names)
 
 
-class DressCodeDatasetAnyDoor(data.Dataset):
+class DressCodeDatasetAnyDoor(BaseDataset):
     def __init__(
         self,
         args,
@@ -482,6 +483,7 @@ class DressCodeDatasetAnyDoor(data.Dataset):
         :type size: tuple(int)
         """
         super(DressCodeDatasetAnyDoor, self).__init__()
+        self.dynamic = 2
         self.args = args
         self.dataroot = dataroot_path
         self.phase = phase
@@ -530,6 +532,8 @@ class DressCodeDatasetAnyDoor(data.Dataset):
         :return: dict containing dataset samples
         :rtype: dict
         """
+
+        # We modify this getitem function to return the expected values to the Anydoor model
         c_name = self.c_names[index]
         im_name = self.im_names[index]
         dataroot = self.dataroot_names[index]
@@ -537,10 +541,24 @@ class DressCodeDatasetAnyDoor(data.Dataset):
         # Clothing image and mask
         ref_image = cv2.imread(os.path.join(dataroot, "images", c_name))
         ref_image = cv2.cvtColor(ref_image, cv2.COLOR_BGR2RGB)
-        ref_mask = (ref_image < 255).astype(np.uint8)[:, :, 0]
+        ref_mask = (ref_image < 250).astype(np.uint8)[:, :, 0]
 
-        # Person image
+        # Person image, to be passed to the AnyDoor process pairs method
+        model_image = cv2.imread(os.path.join(dataroot, "images", im_name))
+        model_image = cv2.cvtColor(model_image, cv2.COLOR_BGR2RGB)
+        model_image = cv2.resize(model_image, (self.width, self.height))
+
+        # Person image, used to compute the mask
         im = Image.open(os.path.join(dataroot, "images", im_name))
+        im = im.resize((self.width, self.height))
+        im = self.transform(im)  # [-1,1]
+
+        # Skeleton
+        skeleton = Image.open(
+            os.path.join(dataroot, "skeletons", im_name.replace("_0", "_5"))
+        )
+        skeleton = skeleton.resize((self.width, self.height))
+        skeleton = self.transform(skeleton)
 
         # Label Map
         parse_name = im_name.replace("_0.jpg", "_4.png")
@@ -626,6 +644,10 @@ class DressCodeDatasetAnyDoor(data.Dataset):
         # dilation
         parse_without_cloth = np.logical_and(parse_shape, np.logical_not(parse_mask))
         parse_mask = parse_mask.cpu().numpy()
+
+        # Masked cloth
+        im_head = im * parse_head - (1 - parse_head)
+        im_cloth = im * parse_cloth + (1 - parse_cloth)
 
         # Shape
         parse_shape = Image.fromarray((parse_shape * 255).astype(np.uint8))
@@ -847,21 +869,39 @@ class DressCodeDatasetAnyDoor(data.Dataset):
         parse_mask = np.logical_and(parser_mask_changeable, np.logical_not(parse_mask))
         parse_mask_total = np.logical_or(parse_mask, parser_mask_fixed)
         im_mask = im * parse_mask_total
+        parse_mask_total = parse_mask_total.numpy()
+        parse_mask_total = parse_array * parse_mask_total
+        parse_mask_total = torch.from_numpy(parse_mask_total)
 
-        result = {
-            "cloth": ref_image,
-            "model_image": im,
-            "model_mask": im_mask,
-            "cloth_mask": ref_mask,
-        }
+        uv = np.load(
+            os.path.join(dataroot, "dense", im_name.replace("_0.jpg", "_5_uv.npz"))
+        )
+        uv = uv["uv"]
+        uv = torch.from_numpy(uv)
+        uv = transforms.functional.resize(uv, (self.height, self.width))
 
-        return result
+        labels = Image.open(
+            os.path.join(dataroot, "dense", im_name.replace("_0.jpg", "_5.png"))
+        )
+        labels = labels.resize((self.width, self.height), Image.NEAREST)
+        labels = np.array(labels)
+
+        # We make our person image mask
+        model_mask = np.array(im_mask) == 0
+
+        # Here call the process pair method
+        item_with_collage = self.process_pairs(
+            ref_image, ref_mask, model_image, model_mask, max_ratio=1.0
+        )
+        sampled_time_steps = self.sample_timestep()
+        item_with_collage["time_steps"] = sampled_time_steps
+        return item_with_collage
 
     def __len__(self):
         return len(self.c_names)
 
 
-# variante che eredita dall'originale
+# not used
 class DressCodeDatasetAnyDoor_sub(DressCodeDataset):
     def __init__(
         self,
@@ -880,3 +920,14 @@ class DressCodeDatasetAnyDoor_sub(DressCodeDataset):
         ref_mask = (result["cloth"] < 1).numpy().astype(np.uint8)[0]
         tar_image = result["image"]
         tar_mask = result["im_mask"]
+
+
+# # Clothing image and mask
+# ref_image = cv2.imread(os.path.join(dataroot, "images", c_name))
+# ref_image = cv2.cvtColor(ref_image, cv2.COLOR_BGR2RGB)
+# ref_mask = (ref_image < 255).astype(np.uint8)[:, :, 0]
+
+# # Person image
+# im = Image.open(os.path.join(dataroot, "images", im_name))
+# im = im.resize((self.width, self.height))
+# im_tensor = self.transform(im_tensor)  # [-1,1]

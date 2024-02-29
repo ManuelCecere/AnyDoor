@@ -32,10 +32,10 @@ Train:
     image_dir: /mnt/workspace/xizhi/data/MVImgNet/
 
   VitonHD:
-    image_dir: /home/ubuntu/mnt/myData/zalando-hd-resized/train/cloth
+    image_dir: /home/ubuntu/mnt/myvolume/zalando-hd-resized/train/cloth
 
   Dresscode:
-    image_dir: /mnt/workspace/xizhi/data/dresscode/DressCode/upper_body/label_maps/
+    image_dir: /home/ubuntu/mnt/myvolume/DressCode
 
   FashionTryon:
     image_dir: path/TryOn/FashionTryOn/train
@@ -62,7 +62,7 @@ Test:
     bg_dir: path/DreamBooth/v1_800
 
   VitonHDTest:
-    image_dir: /home/ubuntu/mnt/myData/zalando-hd-resized/test/cloth
+    image_dir: /home/ubuntu/mnt/myvolume/zalando-hd-resized/test/cloth
 
 
 

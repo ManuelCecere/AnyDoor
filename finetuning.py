@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import einops
 import numpy as np
@@ -11,17 +12,17 @@ from cldm.cldm import ControlLDM
 from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
-import hiddenlayer as hl
 from collections import namedtuple
 import time
 import os
 from cldm.logger import ImageLogger
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from datasets.vitonhd import VitonHDDataset, VitonHDDataset_agnostic
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.tuner.tuning import Tuner
 from dress_code_data import DressCodeDataLoader, DressCodeDataset
+from dress_code_data.dataset import DressCodeDatasetAnyDoor
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -75,11 +76,38 @@ accumulate_grad_batches = 4
 
 # Datasets, the Viton agnostic uses a mask agnostic wrt the garment
 DConf = OmegaConf.load("./configs/datasets.yaml")
-dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
-dataset_val = VitonHDDataset_agnostic(**DConf.Test.VitonHDTest)
+viton_dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
+viton_dataset_val = VitonHDDataset_agnostic(**DConf.Test.VitonHDTest)
 
-print("Train: ", len(dataset_train))
-print("Val: ", len(dataset_val))
+args = argparse.Namespace(
+    batch_size=batch_size,
+    category="all",
+    checkpoint_dir="",
+    data_pairs="{}_pairs",
+    dataroot="/home/ubuntu/mnt/myvolume/DressCode",
+    display_count=1000,
+    epochs=150,
+    exp_name="",
+    height=1024,
+    radius=5,
+    shuffle=False,
+    step=100000,
+    width=768,
+    workers=0,
+)
+dresscode_dataset_train = DressCodeDatasetAnyDoor(
+    args,
+    dataroot_path=args.dataroot,
+    phase="train",
+    order="paired",
+    size=(int(args.height), int(args.width)),
+)
+
+# TODO: make dresscode dataset val using the test folder
+
+print("Viton Train: ", len(viton_dataset_train))
+print("DressCode Train: ", len(dresscode_dataset_train))
+print("Val: ", len(viton_dataset_val))
 
 
 def create_fractional_sampler(dataset, fraction):
@@ -89,10 +117,11 @@ def create_fractional_sampler(dataset, fraction):
     return SubsetRandomSampler(sampled_indices)
 
 
-# use these samplers if you want to reduce the size of the datasets, for test purposes, pass it as parameters to the loaders
-# val_sampler = create_fractional_sampler(dataset_val, fraction=0.01)
-# train_sampler = create_fractional_sampler(dataset_train, fraction=0.1)
+dataset_train = ConcatDataset([viton_dataset_train, dresscode_dataset_train])
 
+# use these samplers if you want to reduce the size of the datasets, for test purposes, pass it as parameters to the loaders
+# val_sampler = create_fractional_sampler(viton_dataset_val, fraction=0.01)
+# train_sampler = create_fractional_sampler(dataset_train, fraction=0.001)
 
 dataloader_train = DataLoader(
     dataset_train,
@@ -101,7 +130,7 @@ dataloader_train = DataLoader(
     shuffle=False,
 )
 dataloader_val = DataLoader(
-    dataset_val,
+    viton_dataset_val,
     num_workers=8,
     batch_size=batch_size,
     shuffle=False,
