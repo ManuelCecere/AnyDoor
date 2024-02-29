@@ -4,6 +4,7 @@ training/
 lightning_logs/
 image_log/
 finetuning/checkpoints
+examples/SUS/GEN
 
 #*.pth
 *.pt
