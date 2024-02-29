@@ -17,7 +17,7 @@ dataset = VitonHDDataset(**DConf.Train.VitonHD)
 
 
 # Configs
-resume_path = ".ckpt/epoch=1-step=8687_train.ckpt"
+resume_path = ".ckpt/epoch=1-step=8687.ckpt"
 batch_size = 1
 logger_freq = 1000
 learning_rate = 1e-5

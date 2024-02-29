@@ -11,13 +11,9 @@ from cldm.cldm import ControlLDM
 from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
-import hiddenlayer as hl
-from collections import namedtuple
-import time
 import os
-from cldm.logger import ImageLogger
 from torch.utils.data import DataLoader
-from datasets.vitonhd import VitonHDDataset, VitonHDDataset_agnostic
+from datasets.vitonhd import VitonHDDataset_agnostic
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.tuner.tuning import Tuner
@@ -91,7 +87,6 @@ def create_fractional_sampler(dataset, fraction):
 # val_sampler = create_fractional_sampler(dataset_val, fraction=0.01)
 # train_sampler = create_fractional_sampler(dataset_train, fraction=0.1)
 
-
 dataloader_train = DataLoader(
     dataset_train,
     num_workers=8,
@@ -127,6 +122,7 @@ for param in model.model.diffusion_model.output_blocks.parameters():
 trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad == True)
 print("trainable parameters:", trainable_count)
 
+# if you want to double check if parameters are correctly freezed
 with open("finetune_parameters.txt", "w") as file:
     for name, param in model.named_parameters():
         file.write(f"{name}: {param.requires_grad}\n")
@@ -141,6 +137,7 @@ checkpoint_callback = ModelCheckpoint(
 )
 
 swa_callback = StochasticWeightAveraging(swa_lrs=1e-5)
+
 trainer = pl.Trainer(
     gpus=n_gpus,
     precision=16,
