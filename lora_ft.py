@@ -107,8 +107,8 @@ model.only_mid_control = only_mid_control
 for name, param in model.named_parameters():
     param.requires_grad = False
 
-lora_r = 8
-lora_alpha = 16
+lora_r = 128
+lora_alpha = 64
 
 assign_lora = partial(LinearWithLoRA, rank=lora_r, alpha=lora_alpha)
 
@@ -138,6 +138,7 @@ with open("lora_model.txt", "w") as file:
 
 # our checkpoint callback. It start at the end of every validation.
 checkpoint_callback = ModelCheckpoint(
+    dirpath= "/home/ubuntu/volume240/AnyDoorLoRA/LoRA_ft",
     monitor="val/loss",
     verbose=True,
     filename="epoch{epoch:01d}-step{step:03d}-val_loss{val/loss:.4f}",
