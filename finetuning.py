@@ -8,8 +8,6 @@ import pytorch_lightning as pl
 from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from cldm.model import create_model, load_state_dict
-from cldm.cldm import ControlLDM
-from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
 from collections import namedtuple
@@ -18,17 +16,23 @@ import os
 from cldm.logger import ImageLogger
 from torch.utils.data import DataLoader, ConcatDataset
 from datasets.vitonhd import VitonHDDataset, VitonHDDataset_agnostic
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.tuner.tuning import Tuner
-from dress_code_data import DressCodeDataLoader, DressCodeDataset
-from dress_code_data.dataset import DressCodeDatasetAnyDoor
+from dress_code_data.dresscode_dataset import DressCodeDatasetAnyDoor
+import logging
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 import albumentations as A
 from omegaconf import OmegaConf
 
+logging.basicConfig(
+    level=logging.INFO,
+    filename="app.log",
+    filemode="w",
+    format="%(name)s - %(levelname)s - %(message)s",
+)
 seed_everything(42, workers=True)
 
 
@@ -67,8 +71,7 @@ if save_memory:
 # Configs
 resume_path = ".ckpt/epoch=1-step=8687.ckpt"
 batch_size = 4
-# value found with ligthinig lr_finder
-learning_rate = 1e-8
+learning_rate = 7.5e-8  # value found with ligthning lr_finder
 sd_locked = False
 only_mid_control = False
 n_gpus = 1
@@ -79,6 +82,8 @@ DConf = OmegaConf.load("./configs/datasets.yaml")
 viton_dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
 viton_dataset_val = VitonHDDataset_agnostic(**DConf.Test.VitonHDTest)
 
+# some of this parameters are inherited from previous scripts, and are not applied
+# TODO: clean the parameters
 args = argparse.Namespace(
     batch_size=batch_size,
     category="all",
@@ -103,6 +108,17 @@ dresscode_dataset_train = DressCodeDatasetAnyDoor(
     size=(int(args.height), int(args.width)),
 )
 
+# # reduce dataset size
+# total_data = len(dresscode_dataset_train)
+# subset_size = total_data // 100
+# print("dataset size:", subset_size)
+
+# # Generate a random sample of indexes for the subset
+# random_indexes = random.sample(range(total_data), subset_size)
+
+# # Creating a subset of the original dataset using the randomly selected indexes
+# random_subset_dataset_train = Subset(dresscode_dataset_train, random_indexes)
+
 # TODO: make dresscode dataset val using the test folder
 
 print("Viton Train: ", len(viton_dataset_train))
@@ -110,18 +126,7 @@ print("DressCode Train: ", len(dresscode_dataset_train))
 print("Val: ", len(viton_dataset_val))
 
 
-def create_fractional_sampler(dataset, fraction):
-    num_samples = len(dataset)
-    indices = list(range(num_samples))
-    sampled_indices = indices[: int(num_samples * fraction)]
-    return SubsetRandomSampler(sampled_indices)
-
-
-dataset_train = ConcatDataset([viton_dataset_train, dresscode_dataset_train])
-
-# use these samplers if you want to reduce the size of the datasets, for test purposes, pass it as parameters to the loaders
-# val_sampler = create_fractional_sampler(viton_dataset_val, fraction=0.01)
-# train_sampler = create_fractional_sampler(dataset_train, fraction=0.001)
+dataset_train = ConcatDataset([dresscode_dataset_train])
 
 dataloader_train = DataLoader(
     dataset_train,
@@ -167,11 +172,11 @@ with open("finetune_parameters.txt", "w") as file:
 checkpoint_callback = ModelCheckpoint(
     monitor="val/loss",
     verbose=True,
-    filename="epoch{epoch:01d}-step{step:03d}-val_loss{val/loss:.4f}",
+    filename="epoch{epoch:01d}-step{step:03d}-val_loss{val/loss:.4f}_DressCode_noAreaCheck",
     auto_insert_metric_name=False,
 )
 
-swa_callback = StochasticWeightAveraging(swa_lrs=1e-5)
+swa_callback = StochasticWeightAveraging(swa_lrs=1e-6)
 trainer = pl.Trainer(
     gpus=n_gpus,
     precision=16,
@@ -181,7 +186,7 @@ trainer = pl.Trainer(
     accumulate_grad_batches=accumulate_grad_batches,
     default_root_dir="./finetuning/checkpoints",
     max_epochs=3,
-    val_check_interval=180,
+    val_check_interval=600,
     profiler="simple",
 )
 
@@ -189,11 +194,21 @@ trainer = pl.Trainer(
 # tuner = Tuner(trainer)
 # # Run learning rate finder
 # lr_finder = tuner.lr_find(
-#     model=model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val
+#     model=model,
+#     train_dataloaders=dataloader_train,
+#     val_dataloaders=dataloader_val,
+#     early_stop_threshold=None,
 # )
 # # Results can be found in
 # print(lr_finder.results)
 
+# # Plot with
+# fig = lr_finder.plot(suggest=True)
+# fig.show()
+
+# # Pick point based on plot, or get suggestion
+# print(lr_finder.suggestion())
+
+# %%
 # Train!
 trainer.fit(model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val)
-print(checkpoint_callback.best_model_score)

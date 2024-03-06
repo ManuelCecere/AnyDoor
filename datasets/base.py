@@ -10,6 +10,9 @@ from .data_utils import *
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 import albumentations as A
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDataset(Dataset):
@@ -95,10 +98,14 @@ class BaseDataset(Dataset):
         step = np.random.randint(step_start, step_end)
         return np.array([step])
 
-    def check_mask_area(self, mask):
+    def check_mask_area(self, mask, max_ratio=0.7, min_ratio=0.01):
         H, W = mask.shape[0], mask.shape[1]
         ratio = mask.sum() / (H * W)
-        if ratio > 0.8 * 0.8 or ratio < 0.1 * 0.1:
+        logger.info(f"Dimensions:{mask.shape}")
+        logger.info(f"sum over the mask {mask.sum()}")
+        logger.info(f"Ratio computed: {ratio}")
+        if (ratio > max_ratio) or (ratio < min_ratio):
+            logger.error(f"ratio computed: {ratio}")
             return False
         else:
             return True
@@ -110,7 +117,7 @@ class BaseDataset(Dataset):
 
         # ========= Reference ===========
         """
-        # similate the case that the mask for reference object is coarse. Seems useless :(
+        # simulate the case that the mask for reference object is coarse. Seems useless :(
 
         if np.random.uniform(0, 1) < 0.7: 
             ref_mask_clean = ref_mask.copy()
@@ -128,10 +135,10 @@ class BaseDataset(Dataset):
 
         # Get the outline Box of the reference image
         ref_box_yyxx = get_bbox_from_mask(ref_mask)
-        assert (
-            self.check_region_size(ref_mask, ref_box_yyxx, ratio=0.10, mode="min")
-            == True
-        )
+        # assert (
+        #     self.check_region_size(ref_mask, ref_box_yyxx, ratio=0.10, mode="min")
+        #     == True
+        # )
 
         # Filtering background for the reference image
         ref_mask_3 = np.stack([ref_mask, ref_mask, ref_mask], -1)
@@ -160,7 +167,6 @@ class BaseDataset(Dataset):
             np.uint8
         )
         ref_mask = ref_mask_3[:, :, 0]
-
         # Augmenting reference image
         # masked_ref_image_aug = self.aug_data(masked_ref_image)
 
@@ -178,10 +184,10 @@ class BaseDataset(Dataset):
         # ========= Training Target ===========
         tar_box_yyxx = get_bbox_from_mask(tar_mask)
         tar_box_yyxx = expand_bbox(tar_mask, tar_box_yyxx, ratio=[1.1, 1.2])  # 1.1  1.3
-        assert (
-            self.check_region_size(tar_mask, tar_box_yyxx, ratio=max_ratio, mode="max")
-            == True
-        )
+        # assert (
+        #     self.check_region_size(tar_mask, tar_box_yyxx, ratio=max_ratio, mode="max")
+        #     == True
+        # )
 
         # Cropping around the target object
         tar_box_yyxx_crop = expand_bbox(tar_image, tar_box_yyxx, ratio=[1.3, 3.0])
