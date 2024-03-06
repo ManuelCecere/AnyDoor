@@ -104,7 +104,7 @@ def get_bbox_from_mask(mask):
 
 def expand_bbox(mask,yyxx,ratio=[1.2,2.0], min_crop=0):
     y1,y2,x1,x2 = yyxx
-    ratio = np.random.randint( ratio[0] * 10,  ratio[1] * 10 ) / 10
+    ratio = np.random.randint( ratio[0] * 100,  ratio[1] * 100) / 100
     H,W = mask.shape[0], mask.shape[1]
     xc, yc = 0.5 * (x1 + x2), 0.5 * (y1 + y2)
     h = ratio * (y2-y1+1)

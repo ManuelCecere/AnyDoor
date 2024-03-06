@@ -1,3 +1,4 @@
+from functools import partial
 import cv2
 import einops
 import numpy as np
@@ -12,6 +13,9 @@ from collections import namedtuple
 from matplotlib import pyplot as plt
 import time
 import os
+from ldm.modules.attention import SpatialTransformer
+
+from ldm.modules.diffusionmodules.openaimodel import ResBlock
 
 
 cv2.setNumThreads(0)
@@ -27,10 +31,54 @@ if save_memory:
     enable_sliced_attention()
 
 
-config = OmegaConf.load("./configs/inference.yaml")
+
+class LoRALayer(torch.nn.Module):
+    def __init__(self, in_dim, out_dim, rank, alpha):
+        super().__init__()
+        std_dev = 1 / torch.sqrt(torch.tensor(rank).float())
+        self.W_a = torch.nn.Parameter(torch.randn(in_dim, rank) * std_dev)
+        self.W_b = torch.nn.Parameter(torch.zeros(rank, out_dim))
+        self.alpha = alpha
+
+    def forward(self, x):
+        x = self.alpha * (x @ self.W_a @ self.W_b)
+        return x
+
+
+class LinearWithLoRA(torch.nn.Module):
+    def __init__(self, linear, rank, alpha):
+        super().__init__()
+        self.linear = linear
+        self.lora = LoRALayer(linear.in_features, linear.out_features, rank, alpha)
+
+    def forward(self, x):
+        return self.linear(x) + self.lora(x)
+
+
+config = OmegaConf.load("./configs/inference_LoRA.yaml")
 model_ckpt = config.pretrained_model
 model_config = config.config_file
 model = create_model(model_config).cpu()
+
+
+lora_r = 128
+lora_alpha = 64
+assign_lora = partial(LinearWithLoRA, rank=lora_r, alpha=lora_alpha)
+
+for block in model.model.diffusion_model.output_blocks:
+    for layer in block:
+        # Some Linear layers where I applied LoRA. Both raise the Error.
+        if isinstance(layer, ResBlock):
+            # Access the emb_layers which is a Sequential containing Linear layers
+            emb_layers = layer.emb_layers
+            for i, layer in enumerate(emb_layers):
+                if isinstance(layer, torch.nn.Linear):
+                    # Assign LoRA or any other modifications to the Linear layer
+                    emb_layers[i] = assign_lora(layer)
+        if isinstance(layer, SpatialTransformer):
+            layer.proj_in = assign_lora(layer.proj_in)
+
+
 model.load_state_dict(load_state_dict(model_ckpt, location="cuda"))
 model = model.cuda()
 ddim_sampler = DDIMSampler(model)
@@ -99,7 +147,7 @@ def process_pairs(ref_image, ref_mask, tar_image, tar_mask, file_id):
     # crop
     tar_box_yyxx_crop = expand_bbox(
         tar_image, tar_box_yyxx, ratio=[1.1, 1.2]
-    )  # 1.2 1.6
+    )  # 1.1 1.6
     tar_box_yyxx_crop = box2squre(tar_image, tar_box_yyxx_crop)  # crop box
     y1, y2, x1, x2 = tar_box_yyxx_crop
 

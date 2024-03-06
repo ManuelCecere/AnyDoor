@@ -1,0 +1,3 @@
+pretrained_model: /home/ubuntu/volume240/AnyDoorLoRA/LoRA_ft/epoch2-step453-val_loss0.0486.ckpt
+config_file: configs/anydoor.yaml
+save_memory: False

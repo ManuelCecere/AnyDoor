@@ -63,7 +63,6 @@ sd_locked = False
 only_mid_control = False
 n_gpus = 1
 accumulate_grad_batches = 4
-
 # Datasets, the Viton agnostic uses a mask agnostic wrt the garment
 DConf = OmegaConf.load("./configs/datasets.yaml")
 dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
@@ -181,4 +180,3 @@ trainer = pl.Trainer(
 
 # Train!
 trainer.fit(model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val)
-print(checkpoint_callback.best_model_score)
