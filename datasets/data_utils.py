@@ -98,18 +98,18 @@ def get_bbox_from_mask(mask):
     h, w = mask.shape[0], mask.shape[1]
 
     if mask.sum() < 10:
-        return 0, h, 0, w
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-    y1, y2 = np.where(rows)[0][[0, -1]]
-    x1, x2 = np.where(cols)[0][[0, -1]]
-    return (y1, y2, x1, x2)
+        return 0,h,0,w
+    rows = np.any(mask,axis=1)
+    cols = np.any(mask,axis=0)
+    y1,y2 = np.where(rows)[0][[0,-1]]
+    x1,x2 = np.where(cols)[0][[0,-1]]
+    return (y1,y2,x1,x2)
 
 
-def expand_bbox(mask, yyxx, ratio=[1.2, 2.0], min_crop=0):
-    y1, y2, x1, x2 = yyxx
-    ratio = np.random.randint(ratio[0] * 10, ratio[1] * 10) / 10
-    H, W = mask.shape[0], mask.shape[1]
+def expand_bbox(mask,yyxx,ratio=[1.2,2.0], min_crop=0):
+    y1,y2,x1,x2 = yyxx
+    ratio = np.random.randint( ratio[0] * 100,  ratio[1] * 100) / 100
+    H,W = mask.shape[0], mask.shape[1]
     xc, yc = 0.5 * (x1 + x2), 0.5 * (y1 + y2)
     h = ratio * (y2 - y1 + 1)
     w = ratio * (x2 - x1 + 1)

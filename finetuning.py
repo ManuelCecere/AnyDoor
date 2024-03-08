@@ -34,6 +34,14 @@ logging.basicConfig(
     format="%(name)s - %(levelname)s - %(message)s",
 )
 seed_everything(42, workers=True)
+
+logging.basicConfig(
+    level=logging.WARNING,
+    filename="app.log",
+    filemode="w",
+    format="%(name)s - %(levelname)s - %(message)s",
+)
+
 save_memory = False
 disable_verbosity()
 if save_memory:
@@ -87,6 +95,7 @@ print("Val: ", len(viton_dataset_val))
 
 dataset_train = ConcatDataset([dresscode_dataset_train, viton_dataset_train])
 
+
 dataloader_train = DataLoader(
     dataset_train,
     num_workers=8,
@@ -118,6 +127,7 @@ for param in model.model.diffusion_model.out.parameters():
 for param in model.model.diffusion_model.output_blocks.parameters():
     param.requires_grad = True
 
+
 with open("finetune_parameters.txt", "w") as file:
     for name, param in model.named_parameters():
         file.write(f"{name}: {param.requires_grad}\n")
@@ -132,6 +142,7 @@ checkpoint_callback = ModelCheckpoint(
 )
 
 swa_callback = StochasticWeightAveraging(swa_lrs=1e-6)
+
 trainer = pl.Trainer(
     gpus=n_gpus,
     precision=16,
