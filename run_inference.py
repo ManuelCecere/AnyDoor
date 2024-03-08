@@ -315,11 +315,15 @@ if __name__ == "__main__":
     )
 
     bg_upper_dirs = [
-        ["./examples/SUS/BG/Eva_0.png", "./examples/SUS/BG/Eva_mask_upper.png", "box"],
+        [
+            "./examples/SUS/BG/Eva_0.png",
+            "./examples/SUS/BG/Eva_mask_upper.png",
+            "upper_box",
+        ],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_upper_smaller.png",
-            "smaller_box",
+            "upper_small_box",
         ],
         [
             "./examples/SUS/BG/Eva_0.png",
@@ -333,21 +337,25 @@ if __name__ == "__main__":
         ],
     ]
     bg_lower_dirs = [
-        ["./examples/SUS/BG/Eva_0.png", "./examples/SUS/BG/Eva_mask_lower.png", "box"],
+        [
+            "./examples/SUS/BG/Eva_0.png",
+            "./examples/SUS/BG/Eva_mask_lower.png",
+            "lower_box",
+        ],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_lower_smaller.png",
-            "smaller_box",
+            "lower_small_box",
         ],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_lower_short.png",
-            "tailored_short",
+            "lower_tailored_short",
         ],
         [
             "./examples/SUS/BG/Eva_0.png",
             "./examples/SUS/BG/Eva_mask_lower_long.png",
-            "tailored_long",
+            "lower_tailored_long",
         ],
     ]
     test_paths = []
@@ -365,7 +373,8 @@ if __name__ == "__main__":
                     bg_image_path=path_tuple[0],
                     bg_mask_path=path_tuple[1],
                     save_path=os.path.join(
-                        "./examples/SUS/GEN", f"{file_id}_upper_{path_tuple[2]}.png"
+                        f"./examples/SUS/GEN/{path_tuple[2]}",
+                        f"{file_id}_upper_{path_tuple[2]}.png",
                     ),
                 )
                 test_paths.append(test_tuple)
@@ -382,7 +391,8 @@ if __name__ == "__main__":
                     bg_image_path=path_tuple[0],
                     bg_mask_path=path_tuple[1],
                     save_path=os.path.join(
-                        "./examples/SUS/GEN", f"{file_id}_lower_{path_tuple[2]}.png"
+                        f"./examples/SUS/GEN/{path_tuple[2]}",
+                        f"{file_id}_lower_{path_tuple[2]}.png",
                     ),
                 )
                 test_paths.append(test_tuple)

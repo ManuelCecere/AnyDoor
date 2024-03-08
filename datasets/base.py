@@ -105,7 +105,7 @@ class BaseDataset(Dataset):
         logger.info(f"sum over the mask {mask.sum()}")
         logger.info(f"Ratio computed: {ratio}")
         if (ratio > max_ratio) or (ratio < min_ratio):
-            logger.error(f"ratio computed: {ratio}")
+            logger.error(f"Error, Ratio computed: {ratio}")
             return False
         else:
             return True

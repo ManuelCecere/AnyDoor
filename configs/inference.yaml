@@ -1,3 +1,3 @@
-pretrained_model: ./finetuning/checkpoints/lightning_logs/version_1_finetune_vanilla/checkpoints/epoch0-step1259-val_loss0.0484.ckpt
+pretrained_model: finetuning/checkpoints/lightning_logs/version_54/checkpoints/epoch1-step5885-val_loss0.0514_DressCode_noAreaCheck.ckpt
 config_file: configs/anydoor.yaml
 save_memory: False
