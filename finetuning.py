@@ -17,6 +17,7 @@ from datasets.vitonhd import VitonHDDataset_agnostic
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.tuner.tuning import Tuner
+import logging
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -24,6 +25,12 @@ import albumentations as A
 from omegaconf import OmegaConf
 
 seed_everything(42, workers=True)
+logging.basicConfig(
+    level=logging.WARNING,
+    filename="app.log",
+    filemode="w",
+    format="%(name)s - %(levelname)s - %(message)s",
+)
 
 
 # not used, instead configure the instance of ModelCheckpoint
