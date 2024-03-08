@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import einops
 import numpy as np
@@ -7,16 +8,18 @@ import pytorch_lightning as pl
 from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from cldm.model import create_model, load_state_dict
-from cldm.cldm import ControlLDM
-from cldm.ddim_hacked import DDIMSampler
 from cldm.hack import disable_verbosity, enable_sliced_attention
 from datasets.data_utils import *
+from collections import namedtuple
+import time
 import os
-from torch.utils.data import DataLoader
-from datasets.vitonhd import VitonHDDataset_agnostic
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from cldm.logger import ImageLogger
+from torch.utils.data import DataLoader, ConcatDataset
+from datasets.vitonhd import VitonHDDataset, VitonHDDataset_agnostic
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.tuner.tuning import Tuner
+from dress_code_data.dresscode_dataset import DressCodeDatasetAnyDoor
 import logging
 
 cv2.setNumThreads(0)
@@ -24,41 +27,20 @@ cv2.ocl.setUseOpenCL(False)
 import albumentations as A
 from omegaconf import OmegaConf
 
+logging.basicConfig(
+    level=logging.INFO,
+    filename="app.log",
+    filemode="w",
+    format="%(name)s - %(levelname)s - %(message)s",
+)
 seed_everything(42, workers=True)
+
 logging.basicConfig(
     level=logging.WARNING,
     filename="app.log",
     filemode="w",
     format="%(name)s - %(levelname)s - %(message)s",
 )
-
-
-# not used, instead configure the instance of ModelCheckpoint
-class CustomModelCheckpoint(pl.Callback):
-    def __init__(self, save_path, save_every_n_steps, dataloader_val):
-        super().__init__()
-        self.save_path = save_path
-        self.save_every_n_steps = save_every_n_steps
-        self.steps_counter = 0
-        self.dataloader_val = dataloader_val
-
-    def on_train_batch_end(
-        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
-    ):
-        self.steps_counter += 1
-        if self.steps_counter % self.save_every_n_steps == 0:
-            checkpoint_path = os.path.join(
-                self.save_path, f"step-{self.steps_counter}.ckpt"
-            )
-            trainer.save_checkpoint(checkpoint_path)
-            print(f"Checkpoint saved: {checkpoint_path}")
-            trainer.validate(model=pl_module, dataloaders=self.dataloader_val)
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        metrics = trainer.callback_metrics
-        val_loss = metrics.get("val/loss")
-        print(f"Validation Loss: {val_loss}")
-
 
 save_memory = False
 disable_verbosity()
@@ -68,8 +50,7 @@ if save_memory:
 # Configs
 resume_path = ".ckpt/epoch=1-step=8687.ckpt"
 batch_size = 4
-# value found with ligthinig lr_finder
-learning_rate = 1e-8
+learning_rate = 7.5e-8  # value found with ligthning lr_finder
 sd_locked = False
 only_mid_control = False
 n_gpus = 1
@@ -77,22 +58,43 @@ accumulate_grad_batches = 4
 
 # Datasets, the Viton agnostic uses a mask agnostic wrt the garment
 DConf = OmegaConf.load("./configs/datasets.yaml")
-dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
-dataset_val = VitonHDDataset_agnostic(**DConf.Test.VitonHDTest)
-print("Train: ", len(dataset_train))
-print("Val: ", len(dataset_val))
+viton_dataset_train = VitonHDDataset_agnostic(**DConf.Train.VitonHD)
+viton_dataset_val = VitonHDDataset_agnostic(**DConf.Test.VitonHDTest)
+
+# some of this parameters are inherited from previous scripts, and are not applied
+# TODO: can we change this?
+args = argparse.Namespace(
+    batch_size=batch_size,
+    category="all",
+    checkpoint_dir="",
+    data_pairs="{}_pairs",
+    dataroot="/home/ubuntu/mnt/myvolume/DressCode",
+    display_count=1000,
+    epochs=150,
+    exp_name="",
+    height=1024,
+    radius=5,
+    shuffle=False,
+    step=100000,
+    width=768,
+    workers=0,
+)
+dresscode_dataset_train = DressCodeDatasetAnyDoor(
+    args,
+    dataroot_path=args.dataroot,
+    phase="train",
+    order="paired",
+    size=(int(args.height), int(args.width)),
+)
 
 
-def create_fractional_sampler(dataset, fraction):
-    num_samples = len(dataset)
-    indices = list(range(num_samples))
-    sampled_indices = indices[: int(num_samples * fraction)]
-    return SubsetRandomSampler(sampled_indices)
+print("Viton Train: ", len(viton_dataset_train))
+print("DressCode Train: ", len(dresscode_dataset_train))
+print("Val: ", len(viton_dataset_val))
 
 
-# use these samplers if you want to reduce the size of the datasets, for test purposes, pass it as parameters to the loaders
-# val_sampler = create_fractional_sampler(dataset_val, fraction=0.01)
-# train_sampler = create_fractional_sampler(dataset_train, fraction=0.1)
+dataset_train = ConcatDataset([dresscode_dataset_train, viton_dataset_train])
+
 
 dataloader_train = DataLoader(
     dataset_train,
@@ -101,7 +103,7 @@ dataloader_train = DataLoader(
     shuffle=False,
 )
 dataloader_val = DataLoader(
-    dataset_val,
+    viton_dataset_val,
     num_workers=8,
     batch_size=batch_size,
     shuffle=False,
@@ -126,24 +128,20 @@ for param in model.model.diffusion_model.output_blocks.parameters():
     param.requires_grad = True
 
 
-trainable_count = sum(p.numel() for p in model.parameters() if p.requires_grad == True)
-print("trainable parameters:", trainable_count)
-
-# if you want to double check if parameters are correctly freezed
 with open("finetune_parameters.txt", "w") as file:
     for name, param in model.named_parameters():
         file.write(f"{name}: {param.requires_grad}\n")
-
 
 # our checkpoint callback. It start at the end of every validation.
 checkpoint_callback = ModelCheckpoint(
     monitor="val/loss",
     verbose=True,
-    filename="epoch{epoch:01d}-step{step:03d}-val_loss{val/loss:.4f}",
+    filename="epoch{epoch:01d}-step{step:03d}-val_loss{val/loss:.4f}_DressCode_noAreaCheck",
     auto_insert_metric_name=False,
+    save_top_k=5,
 )
 
-swa_callback = StochasticWeightAveraging(swa_lrs=1e-5)
+swa_callback = StochasticWeightAveraging(swa_lrs=1e-6)
 
 trainer = pl.Trainer(
     gpus=n_gpus,
@@ -153,8 +151,8 @@ trainer = pl.Trainer(
     progress_bar_refresh_rate=5,
     accumulate_grad_batches=accumulate_grad_batches,
     default_root_dir="./finetuning/checkpoints",
-    max_epochs=3,
-    val_check_interval=180,
+    max_epochs=5,
+    val_check_interval=3000,
     profiler="simple",
 )
 
@@ -162,11 +160,21 @@ trainer = pl.Trainer(
 # tuner = Tuner(trainer)
 # # Run learning rate finder
 # lr_finder = tuner.lr_find(
-#     model=model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val
+#     model=model,
+#     train_dataloaders=dataloader_train,
+#     val_dataloaders=dataloader_val,
+#     early_stop_threshold=None,
 # )
 # # Results can be found in
 # print(lr_finder.results)
 
+# # Plot with
+# fig = lr_finder.plot(suggest=True)
+# fig.show()
+
+# # Pick point based on plot, or get suggestion
+# print(lr_finder.suggestion())
+
+# %%
 # Train!
 trainer.fit(model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val)
-print(checkpoint_callback.best_model_score)
