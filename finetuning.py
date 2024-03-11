@@ -79,21 +79,21 @@ args = argparse.Namespace(
     width=768,
     workers=0,
 )
-dresscode_dataset_train = DressCodeDatasetAnyDoor(
-    args,
-    dataroot_path=args.dataroot,
-    phase="train",
-    order="paired",
-    size=(int(args.height), int(args.width)),
-)
+# dresscode_dataset_train = DressCodeDatasetAnyDoor(
+#     args,
+#     dataroot_path=args.dataroot,
+#     phase="train",
+#     order="paired",
+#     size=(int(args.height), int(args.width)),
+# )
 
 
 print("Viton Train: ", len(viton_dataset_train))
-print("DressCode Train: ", len(dresscode_dataset_train))
+# print("DressCode Train: ", len(dresscode_dataset_train))
 print("Val: ", len(viton_dataset_val))
 
 
-dataset_train = ConcatDataset([dresscode_dataset_train, viton_dataset_train])
+dataset_train = ConcatDataset([viton_dataset_train])
 
 
 dataloader_train = DataLoader(
@@ -152,7 +152,7 @@ trainer = pl.Trainer(
     accumulate_grad_batches=accumulate_grad_batches,
     default_root_dir="./finetuning/checkpoints",
     max_epochs=5,
-    val_check_interval=3000,
+    val_check_interval=100,
     profiler="simple",
 )
 
